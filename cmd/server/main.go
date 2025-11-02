@@ -10,6 +10,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/balatsanandrey25/wether-serves/internal/client/http/coordinates"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-co-op/gocron/v2"
@@ -18,6 +19,7 @@ import (
 const PORT = ":3000"
 
 func main() {
+
 	// Создаем контекст для graceful shutdown
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
@@ -47,8 +49,26 @@ func main() {
 	// Настраиваем HTTP сервер
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
-	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("welcome"))
+	r.Get("/{cityName}", func(w http.ResponseWriter, r *http.Request) {
+		cityName := chi.URLParam(r, "cityName")
+		response, err := coordinates.SearchCity(cityName)
+		if err != nil {
+			fmt.Printf("Ошибка: %v\n", err)
+			return
+		}
+
+		// Проверяем есть ли результаты
+		if len(response.Results) == 0 {
+			fmt.Println("Город не найден")
+			return
+		}
+		city := response.Results[0]
+
+		w.Write([]byte(cityName))
+		if err != nil {
+			fmt.Errorf(err.Error())
+		}
+		fmt.Printf("📍 Город: %s\n", city.Name)
 	})
 
 	server := &http.Server{
@@ -81,7 +101,7 @@ func main() {
 func initCron(scheduler gocron.Scheduler) ([]gocron.Job, error) {
 	j, err := scheduler.NewJob(
 		gocron.DurationJob(
-			1*time.Second,
+			20*time.Second,
 		),
 		gocron.NewTask(
 			func() {
