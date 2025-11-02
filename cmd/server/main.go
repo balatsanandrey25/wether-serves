@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -63,10 +64,15 @@ func main() {
 			return
 		}
 		city := response.Results[0]
-
-		w.Write([]byte(cityName))
+		row, err := json.Marshal(response)
 		if err != nil {
-			fmt.Errorf(err.Error())
+			fmt.Println(err)
+			return
+		}
+		_, err = w.Write(row)
+		if err != nil {
+			fmt.Println(err)
+			return
 		}
 		fmt.Printf("📍 Город: %s\n", city.Name)
 	})
